@@ -24,14 +24,15 @@
  */
 package net.runelite.client.plugins.xpupdater;
 
+import net.runelite.client.config.Config;
 import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
 
 @ConfigGroup("xpupdater")
-public interface XpUpdaterConfig
+public interface XpUpdaterConfig extends Config
 {
 	@ConfigItem(
-		position = 1,
+		position = 0,
 		keyName = "cml",
 		name = "Crystal Math Labs",
 		description = "Automatically updates your stats on crystalmathlabs.com when you log out"
@@ -42,7 +43,7 @@ public interface XpUpdaterConfig
 	}
 
 	@ConfigItem(
-		position = 2,
+		position = 1,
 		keyName = "templeosrs",
 		name = "TempleOSRS",
 		description = "Automatically updates your stats on templeosrs.com when you log out"
@@ -51,4 +52,16 @@ public interface XpUpdaterConfig
 	{
 		return false;
 	}
+
+	@ConfigItem(
+			position = 2,
+			keyName = "saltygg",
+			name = "salty.gg",
+			description = "Automatically updates your stats on salty.gg when you log out"
+	)
+	default boolean saltygg()
+	{
+		return false;
+	}
+
 }

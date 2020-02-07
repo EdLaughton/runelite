@@ -191,5 +191,37 @@ public class XpUpdaterPlugin extends Plugin
 				}
 			});
 		}
+
+		if (config.saltygg())
+		{
+			HttpUrl url = new HttpUrl.Builder()
+					.scheme("https")
+					.host("api.salty.gg")
+					.addPathSegment("public")
+					.addPathSegment("client")
+					.addPathSegment("refresh")
+					.addQueryParameter("rsn", reformedUsername)
+					.build();
+
+			Request request = new Request.Builder()
+					.header("User-Agent", "RuneLite")
+					.url(url)
+					.build();
+
+			httpClient.newCall(request).enqueue(new Callback()
+			{
+				@Override
+				public void onFailure(Call call, IOException e)
+				{
+					log.warn("Error submitting salty.gg update, caused by {}.", e.getMessage());
+				}
+
+				@Override
+				public void onResponse(Call call, Response response)
+				{
+					response.close();
+				}
+			});
+		}
 	}
 }
