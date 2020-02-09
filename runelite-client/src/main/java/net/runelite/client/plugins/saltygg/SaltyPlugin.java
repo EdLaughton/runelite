@@ -23,12 +23,11 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.runelite.client.plugins.xpupdater;
+package net.runelite.client.plugins.saltygg;
 
-import java.io.IOException;
-import java.util.Objects;
-import javax.inject.Inject;
+import com.google.gson.Gson;
 import com.google.inject.Provides;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
@@ -39,56 +38,85 @@ import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.http.api.RuneLiteAPI;
-import okhttp3.Call;
-import okhttp3.Callback;
-import okhttp3.HttpUrl;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
+import okhttp3.*;
+
+import javax.inject.Inject;
+import java.io.IOException;
+import java.lang.reflect.Array;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
 
 @PluginDescriptor(
-		name = "XP Updater",
-		description = "Automatically updates your stats on external xptrackers when you log out",
-		tags = {"cml", "templeosrs", "temple", "external", "integration"},
-		enabledByDefault = false
+	name = "Salty GG Tracker",
+	description = "Automatically updates your stats, drops and other achievements",
+	tags = {"saltygg", "external", "integration"},
+	enabledByDefault = true
 )
 @Slf4j
-public class XpUpdaterPlugin extends Plugin
+public class SaltyPlugin extends Plugin
 {
 	/**
 	 * Amount of EXP that must be gained for an update to be submitted.
 	 */
-	private static final int XP_THRESHOLD = 10000;
+	private static final int XP_THRESHOLD = 0;
+	public static ArrayList javaArrayListFromGSON;
+
+	@Inject
+	private OverlayManager overlayManager;
+
+	@Inject
+	private SaltyOverlay saltyOverlay;
 
 	@Inject
 	private Client client;
 
 	private String lastUsername;
 	private boolean fetchXp;
+
 	private long lastXp;
 
+
 	@Inject
-	private XpUpdaterConfig config;
+	private net.runelite.client.plugins.saltygg.SaltyConfig config;
+
 
 	@Provides
-	XpUpdaterConfig getConfig(ConfigManager configManager)
+	SaltyConfig getConfig(ConfigManager configManager)
 	{
-		return configManager.getConfig(XpUpdaterConfig.class);
+		return configManager.getConfig(SaltyConfig.class);
 	}
 
+
 	@Override
-	protected void startUp()
+	protected void startUp() throws Exception
 	{
 		fetchXp = true;
 	}
+
+
 
 	@Subscribe
 	public void onGameStateChanged(GameStateChanged gameStateChanged)
 	{
 		GameState state = gameStateChanged.getGameState();
+
 		if (state == GameState.LOGGED_IN)
 		{
+			Player local = client.getLocalPlayer();
+
+			if (local == null)
+			{
+				return;
+			}
+
+			log.debug("Requesting list of Salty Members with {}", local.getName());
+
+			updateActiveUserList();
+
+
 			if (!Objects.equals(client.getUsername(), lastUsername))
 			{
 				lastUsername = client.getUsername();
@@ -103,6 +131,7 @@ public class XpUpdaterPlugin extends Plugin
 				return;
 			}
 
+
 			long totalXp = client.getOverallExperience();
 			// Don't submit update unless xp threshold is reached
 			if (Math.abs(totalXp - lastXp) > XP_THRESHOLD)
@@ -114,6 +143,8 @@ public class XpUpdaterPlugin extends Plugin
 		}
 	}
 
+
+
 	@Subscribe
 	public void onGameTick(GameTick gameTick)
 	{
@@ -122,22 +153,95 @@ public class XpUpdaterPlugin extends Plugin
 			lastXp = client.getOverallExperience();
 			fetchXp = false;
 		}
+
+
 	}
+
+	public void updateActiveUserList() {
+
+		OkHttpClient httpClient = RuneLiteAPI.CLIENT;
+
+		if (config.highlighter())
+		{
+			HttpUrl url = new HttpUrl.Builder()
+					.scheme("https")
+					.host("api.salty.gg")
+					.addPathSegment("private")
+					.addPathSegment("client")
+					.addPathSegment("rsncache")
+					.build();
+
+			Request request = new Request.Builder()
+					.header("User-Agent", "RuneLite")
+					.url(url)
+					.build();
+
+			httpClient.newCall(request).enqueue(new Callback()
+			{
+
+
+				private Array ResponseBody;
+
+				@Override
+				public void onFailure(Call call, IOException e)
+				{
+					log.warn("Error submitting salty.gg update, caused by {}.", e.getMessage());
+				}
+
+
+				@SneakyThrows
+				@Override
+				public void onResponse(Call call, Response response) throws IOException {
+
+					// Convert JSON Array String into Java Array List
+					Gson googleJson = new Gson();
+					String arrayFromString = response.body().string();
+					ArrayList javaArrayListFromGSON = googleJson.fromJson(arrayFromString, ArrayList.class);
+
+					isSaltyArray(javaArrayListFromGSON);
+
+
+				}
+
+
+
+			});
+
+
+
+		}
+
+	}
+//// THIS SPEWS OUT STUFF BUT I DONT UNDERSTAND WHAT NOW. Following PlayerIndicator plugin , i am still more confused as before. After working with this a while, i didnt get it to check the array all the time.
+	private void isSaltyArray(ArrayList javaArrayListFromGSON) {
+
+		Player local = client.getLocalPlayer();
+
+		boolean saltyMember = SaltyPlugin.javaArrayListFromGSON.contains(local.getName());
+
+		if (saltyMember)
+			System.out.println("The list contains user" + saltyMember );
+		else
+			System.out.println("Fak off");
+
+
+	}
+
 
 	private void sendUpdateRequest(String username)
 	{
 		String reformedUsername = username.replace(" ", "_");
 		OkHttpClient httpClient = RuneLiteAPI.CLIENT;
 
-		if (config.cml())
+		if (config.track())
 		{
 			HttpUrl url = new HttpUrl.Builder()
 					.scheme("https")
-					.host("crystalmathlabs.com")
-					.addPathSegment("tracker")
-					.addPathSegment("api.php")
-					.addQueryParameter("type", "update")
-					.addQueryParameter("player", reformedUsername)
+					.host("api.salty.gg")
+					.addPathSegment("public")
+					.addPathSegment("client")
+					.addPathSegment("refresh")
+					.addQueryParameter("rsn", reformedUsername)
 					.build();
 
 			Request request = new Request.Builder()
@@ -150,7 +254,7 @@ public class XpUpdaterPlugin extends Plugin
 				@Override
 				public void onFailure(Call call, IOException e)
 				{
-					log.warn("Error submitting CML update, caused by {}.", e.getMessage());
+					log.warn("Error submitting salty.gg update, caused by {}.", e.getMessage());
 				}
 
 				@Override
@@ -161,35 +265,9 @@ public class XpUpdaterPlugin extends Plugin
 			});
 		}
 
-		if (config.templeosrs())
-		{
-			HttpUrl url = new HttpUrl.Builder()
-					.scheme("https")
-					.host("templeosrs.com")
-					.addPathSegment("php")
-					.addPathSegment("add_datapoint.php")
-					.addQueryParameter("player", reformedUsername)
-					.build();
 
-			Request request = new Request.Builder()
-					.header("User-Agent", "RuneLite")
-					.url(url)
-					.build();
 
-			httpClient.newCall(request).enqueue(new Callback()
-			{
-				@Override
-				public void onFailure(Call call, IOException e)
-				{
-					log.warn("Error submitting TempleOSRS update, caused by {}.", e.getMessage());
-				}
-
-				@Override
-				public void onResponse(Call call, Response response)
-				{
-					response.close();
-				}
-			});
-		}
 	}
+
+
 }

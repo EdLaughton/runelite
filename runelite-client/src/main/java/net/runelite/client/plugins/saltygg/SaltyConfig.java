@@ -22,33 +22,37 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.runelite.client.plugins.xpupdater;
+package net.runelite.client.plugins.saltygg;
 
+import net.runelite.client.config.Config;
 import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
 
 @ConfigGroup("xpupdater")
-public interface XpUpdaterConfig
+public interface SaltyConfig extends Config
 {
+
 	@ConfigItem(
-			position = 1,
-			keyName = "cml",
-			name = "Crystal Math Labs",
-			description = "Automatically updates your stats on crystalmathlabs.com when you log out"
+			position = 0,
+			keyName = "saltygg",
+			name = "Enable Tracking",
+			description = "Automatically updates your stats on salty.gg when you log out"
 	)
-	default boolean cml()
+	default boolean track()
 	{
-		return false;
+		return true;
 	}
 
 	@ConfigItem(
-			position = 2,
-			keyName = "templeosrs",
-			name = "TempleOSRS",
-			description = "Automatically updates your stats on templeosrs.com when you log out"
+			position = 1,
+			keyName = "highlighter",
+			name = "Highlight other Salty members",
+			description = "Will highlight other members from the community ingame."
 	)
-	default boolean templeosrs()
+	default boolean highlighter()
 	{
-		return false;
+		return true;
 	}
+
+
 }
